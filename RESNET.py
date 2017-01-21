@@ -34,6 +34,9 @@ from resnet import Residual
 from skimage.transform import resize
 import scipy
 
+from keras.layers import BatchNormalization,merge
+from keras import backend as K
+
 batch_size = 128
 nb_classes = 231
 nb_epoch = 100
@@ -58,8 +61,41 @@ def dataset_load(path):
         data=cPickle.load(f,encoding="bytes")
     f.close()
     return data
+def identity_block(input_tensor, kernel_size, filters, stage, block):
+    """The identity_block is the block that has no conv layer at shortcut
+    # Arguments
+        input_tensor: input tensor
+        kernel_size: defualt 3, the kernel size of middle conv layer at main path
+        filters: list of integers, the nb_filters of 3 conv layer at main path
+        stage: integer, current stage label, used for generating layer names
+        block: 'a','b'..., current block label, used for generating layer names
+    """
+    nb_filter1, nb_filter2, nb_filter3 = filters
+    if K.image_dim_ordering() == 'tf':
+        bn_axis = 3
+    else:
+        bn_axis = 1
+    conv_name_base = 'res' + str(stage) + block + '_branch'
+    bn_name_base = 'bn' + str(stage) + block + '_branch'
 
-(X_train,y_train),(X_test,y_test)=dataset_load('./FULL_BANGLA.pkl.gz')
+    x = Convolution2D(nb_filter1, 1, 1, name=conv_name_base + '2a')(input_tensor)
+    x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
+    x = Activation('relu')(x)
+
+    x = Dropout(0.2)(x)
+
+    x = Convolution2D(nb_filter2, kernel_size, kernel_size,
+                      border_mode='same', name=conv_name_base + '2b')(x)
+    x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2b')(x)
+    x = Activation('relu')(x)
+
+    x = Convolution2D(nb_filter3, 1, 1, name=conv_name_base + '2c')(x)
+    x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
+
+    x = merge([x, input_tensor], mode='sum')
+    x = Activation('relu')(x)
+    return x
+(X_train,y_train),(X_test,y_test)=dataset_load('./BanglaFUll.pkl.gz')
 
 X_train = X_train.reshape(X_train.shape[0], 1, img_rows, img_cols)
 X_test = X_test.reshape(X_test.shape[0], 1, img_rows, img_cols)
@@ -87,8 +123,6 @@ if isAugment:
             test_images.append(resized_updated2.reshape(1, 28, 28))
             test_labels.append(y_train[i])
 
-
-
     X_train = np.asarray(test_images)
     print(X_train.shape)
     y_train = np.asarray(test_labels)
@@ -108,16 +142,18 @@ CONV_2 = Convolution2D(16, kernel_size[0], kernel_size[1],
                       border_mode='same', activation='relu')(CONV_1)
 
 resnet = CONV_2
+'''Residual Network '''
 
-for _ in range(6):
-    resnet = Residual(Convolution2D(16, kernel_size[0], kernel_size[1],
-                                  border_mode='same'))(resnet)
-    resnet = Residual(Convolution2D(16, kernel_size[0], kernel_size[1],
-                                    border_mode='same'))(resnet)
-    resnet = Residual(Convolution2D(16, kernel_size[0], kernel_size[1],
-                                    border_mode='same'))(resnet)
+Filters=[16,16,16]
+resnet=identity_block(resnet,3,Filters,1,'a')
 
-    resnet = Activation('relu')(resnet)
+# for _ in range(15):
+#     CONV=(Convolution2D(16, kernel_size[0], kernel_size[1],
+#                                   border_mode='same'))
+#
+#     resnet = Residual(CONV)(resnet)
+#     resnet=Dropout(0.2)(resnet)
+#     resnet = Activation('relu')(resnet)
 
 mxpool = MaxPooling2D(pool_size=pool_size)(resnet)
 flat = Flatten()(mxpool)
