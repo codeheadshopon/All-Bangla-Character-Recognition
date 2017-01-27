@@ -28,7 +28,8 @@ class TrainableMerge(Layer):
         ''' Dot Product Final_Result=X1*W1+X2*W2'''
         Tensor_1=K.dot(e1, self.W1)
         Tensor_2=K.dot(e2,self.W2)
-        result= K.sum(K.concatenate([Tensor_1, Tensor_2]))
+        inputs=[Tensor_1,Tensor_2]
+        result= K.sum(K.concatenate(inputs,axis=self.concat_axis))
         return result
 
     def get_output_shape_for(self, input_shape):
