@@ -156,7 +156,8 @@ Filters=[4,4,4]
 resnet=identity_block(resnet,3,Filters,1,'a')
 
 
-flat=resnet
+mxpool = MaxPooling2D(pool_size=pool_size)(resnet)
+flat = Flatten()(mxpool)
 dropout = Dropout(0.5)(flat)
 softmax = Dense(nb_classes, activation='softmax')(dropout)
 
