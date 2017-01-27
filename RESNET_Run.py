@@ -36,17 +36,9 @@ import scipy
 
 from keras.layers import BatchNormalization,merge
 from keras import backend as K
+from TraunableMerge import NeuralTensorLayer as MERGE
 
-batch_size = 128
-nb_classes = 231
-nb_epoch = 100
 
-img_rows, img_cols = 28, 28
-pool_size = (2, 2)
-kernel_size = (3, 3)
-
-# Augmentation Fllag  #
-isAugment=False
 
 
 def dataset_load(path):
@@ -92,10 +84,35 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
     x = Convolution2D(nb_filter3, 1, 1, name=conv_name_base + '2c')(x)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
 
-    x = merge([x, input_tensor], mode='sum')
+    #x = merge([x, input_tensor], mode='sum')
+    print(x.size)
+    print(input_tensor.size)
+    print("Came here")
+    A=Flatten()(x)
+    B=Flatten()(input_tensor)
+    x = MERGE(output_dim=784, input_dim=784)([A,B])
+    print("Also came here")
     x = Activation('relu')(x)
     return x
+
+
+batch_size = 6
+nb_classes = 10
+# nb_classes = 231
+nb_epoch = 100
+
+img_rows, img_cols = 28, 28
+pool_size = (2, 2)
+kernel_size = (3, 3)
+
+# Augmentation Fllag  #
+isAugment=False
+
 (X_train,y_train),(X_test,y_test)=dataset_load('./BanglaFUll.pkl.gz')
+X_train=X_train[:100]
+y_train=y_train[:100]
+X_test=X_test[6:10]
+y_test=y_test[6:10]
 
 X_train = X_train.reshape(X_train.shape[0], 1, img_rows, img_cols)
 X_test = X_test.reshape(X_test.shape[0], 1, img_rows, img_cols)
@@ -144,7 +161,7 @@ CONV_2 = Convolution2D(16, kernel_size[0], kernel_size[1],
 resnet = CONV_2
 '''Residual Network '''
 
-Filters=[16,16,16]
+Filters=[8,8,8]
 resnet=identity_block(resnet,3,Filters,1,'a')
 
 # for _ in range(15):
