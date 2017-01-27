@@ -6,7 +6,7 @@ from keras import initializations
 
 class TrainableMerge(Layer):
     def __init__(self, output_dim, input_dim,**kwargs):
-        init = 'glorot_uniform'
+        init = 'uniform'
         self.output_dim = output_dim
         self.input_dim= input_dim
         self.init = initializations.get(init)
