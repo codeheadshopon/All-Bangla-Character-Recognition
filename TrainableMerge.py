@@ -4,6 +4,7 @@ import numpy as np
 import functools
 from keras import initializations
 import theano.tensor as T
+from theano import function
 class CustomMerge(Layer):
     def __init__(self, output_dim, input_dim,**kwargs):
         init = 'glorot_uniform'
@@ -21,10 +22,13 @@ class CustomMerge(Layer):
         # self.W2 = self.add_weight(shape=(input_shape[1], self.output_dim),
         #                           initializer=self.init,
         #                           trainable=True)
+        x = T.dscalar('x')
+        z = x
+        f = function([x], z)
 
-        self.W1=T.constant(0.5)
-        self.W2=T.constant(0.5)
-        # super(CustomMerge, self).build()
+        self.W1=f(0.5)
+        self.W2=f(0.5)
+        super(CustomMerge, self).build()
     def call(self, x, mask=None):
         e1=x[0]
         e2=x[1]
