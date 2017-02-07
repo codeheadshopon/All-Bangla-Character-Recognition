@@ -35,24 +35,33 @@ import scipy
 
 from keras.layers import BatchNormalization,merge
 from keras import backend as K
-# from TraunableMerge import NeuralTensorLayer as MERGE
-from CustomMerge import CustomMerge as MERGE
+from CustomMerge import CustomMerge as WEIGHT_MULT
+import theano
+def dataset_load(path):
+    if path.endswith(".gz"):
+        f=gzip.open(path,'rb')
+    else:
+        f=open(path,'rb')
 
-
-
+    if sys.version_info<(3,):
+        data=cPickle.load(f)
+    else:
+        data=cPickle.load(f,encoding="bytes")
+    f.close()
+    return data
 
 
 def identity_block(input_tensor, kernel_size, filters, stage, block):
 
     nb_filter1, nb_filter2, nb_filter3 = filters
-    if K.image_dim_ordering() == 'tf':
+    if K.image_dim_ordering() == 'th':
         bn_axis = 3
     else:
         bn_axis = 1
     conv_name_base = 'res' + str(stage) + block + '_branch'
     bn_name_base = 'bn' + str(stage) + block + '_branch'
 
-    x = Convolution2D(nb_filter1, 1, 1, name=conv_name_base + '2a')(input_tensor)
+    x = Convolution2D(nb_filter1, 1, 1, name=conv_name_base + '2a',border_mode='same')(input_tensor)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
     x = Activation('relu')(x)
 
@@ -63,19 +72,22 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2b')(x)
     x = Activation('relu')(x)
 
-    x = Convolution2D(nb_filter3, 1, 1, name=conv_name_base + '2c')(x)
+    x = Convolution2D(nb_filter3, 1, 1, name=conv_name_base + '2c',border_mode='same')(x)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
 
-    #x = merge([x, input_tensor], mode='sum')
+    x = WEIGHT_MULT(output_dim=(1, 28, 28), input_dim=(1, 28, 28))([x])
+    input_tensor = WEIGHT_MULT(output_dim=(1, 28, 28), input_dim=(1, 28, 28))([input_tensor])
+
+    x = merge([x, input_tensor], mode='sum')
     ''' Calling Trainable Merge'''
-    x = MERGE(output_dim=(1,28,28), input_dim=(1,28,28))([x,input_tensor])
+    # x = MERGE(output_dim=(1,28,28), input_dim=(1,28,28))([x,input_tensor])
     x = Activation('relu')(x)
     return x
 
 
-batch_size = 6
-nb_classes = 10
-# nb_classes = 231
+batch_size = 128
+# nb_classes = 10
+nb_classes = 231
 nb_epoch = 100
 
 img_rows, img_cols = 28, 28
@@ -98,10 +110,7 @@ def dataset_load(path):
     return data
 
 (X_train,y_train),(X_test,y_test)=dataset_load('./BanglaFUll.pkl.gz')
-X_train=X_train[:100]
-y_train=y_train[:100]
-X_test=X_test[6:10]
-y_test=y_test[6:10]
+
 
 X_train = X_train.reshape(X_train.shape[0], 1, img_rows, img_cols)
 X_test = X_test.reshape(X_test.shape[0], 1, img_rows, img_cols)
@@ -150,10 +159,16 @@ CONV_2 = Convolution2D(16, kernel_size[0], kernel_size[1],
 resnet = CONV_2
 '''Residual Network '''
 
-Filters=[4,4,4]
+Filters=[16,16,16]
 resnet=identity_block(resnet,3,Filters,1,'a')
 
-flat=(resnet)
+CONV_2 = Convolution2D(16, kernel_size[0], kernel_size[1],
+                      border_mode='same', activation='relu')(resnet)
+
+Filters=[16,16,16]
+resnet=identity_block(CONV_2,3,Filters,2,'b')
+
+flat=Flatten()(resnet)
 dropout = Dropout(0.5)(flat)
 softmax = Dense(nb_classes, activation='softmax')(dropout)
 
